@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import joblib
 
 # -------------------- CONFIGURATION --------------------
-DATA_PATH = "StudentsPerformance.csv"
+DATA_PATH = "https://drive.google.com/file/d/1Y7NydfRMGUFULWgxsAvsybu5w4-62cmB/view?usp=drive_link"
 MODEL_PATH = "student_performance_model.pkl"
 SCALER_PATH = "scaler.pkl"
 
@@ -317,4 +317,5 @@ st.markdown("""
     <p>🎓 Advanced Student Performance Predictor | Built with Streamlit & Scikit-learn</p>
     <p>💡 Developed by <b>Muhammad Furqan</b></p>
 </div>
+
 """, unsafe_allow_html=True)
