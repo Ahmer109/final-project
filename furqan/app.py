@@ -11,9 +11,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import joblib
 
 # -------------------- CONFIGURATION --------------------
-# DATA_PATH = "https://drive.google.com/file/d/1Y7NydfRMGUFULWgxsAvsybu5w4-62cmB/view?usp=drive_link"
 DATA_PATH = "https://drive.google.com/uc?id=1Y7NydfRMGUFULWgxsAvsybu5w4-62cmB&export=download"
-
 MODEL_PATH = "student_performance_model.pkl"
 SCALER_PATH = "scaler.pkl"
 
@@ -79,14 +77,19 @@ button[kind="secondary"]:hover {
 # -------------------- LOAD & PREPROCESS --------------------
 @st.cache_data
 def load_and_preprocess_data():
-    if not os.path.exists(DATA_PATH):
-        return None
     df = pd.read_csv(DATA_PATH)
     df.columns = [c.strip() for c in df.columns]
+
+    # Normalize scores (because original dataset is /100)
     for col in ["math score", "reading score", "writing score"]:
         df[col] = pd.to_numeric(df[col], errors="coerce") / 2.0
+
     df.dropna(inplace=True)
+
+    # Create average score
     df["average_score"] = df[["math score", "reading score", "writing score"]].mean(axis=1)
+
+    # Performance label
     df["performance_level"] = df["average_score"].apply(
         lambda x: "High" if x >= 40 else "Medium" if x >= 30 else "Low"
     )
@@ -110,20 +113,18 @@ def train_and_save_model(df):
     model = RandomForestClassifier(n_estimators=200, random_state=42)
     model.fit(X_train, y_train)
 
-    # Save model and scaler
     joblib.dump(model, MODEL_PATH)
     joblib.dump(scaler, SCALER_PATH)
 
     y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
+
     return model, scaler, X, X_test, y_test, y_pred, acc, numeric
 
 
 def load_saved_model():
     if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
-        model = joblib.load(MODEL_PATH)
-        scaler = joblib.load(SCALER_PATH)
-        return model, scaler
+        return joblib.load(MODEL_PATH), joblib.load(SCALER_PATH)
     return None, None
 
 
@@ -142,22 +143,13 @@ st.caption("📘 Smart ML Dashboard to Analyze and Predict Student Performance")
 # -------------------- LOAD MODEL OR TRAIN --------------------
 df = load_and_preprocess_data()
 
-if df is not None:
-    model, scaler, X, X_test, y_test, y_pred, accuracy, numeric_cols = train_and_save_model(df)
-else:
-    model, scaler = load_saved_model()
-    if model is None:
-        st.error("❌ No dataset or saved model found. Please upload the dataset first.")
-        st.stop()
-    else:
-        st.warning("⚠️ Dataset not found — using previously saved model.")
-        X, X_test, y_test, y_pred, accuracy, numeric_cols = None, None, None, None, 0.0, ["math score", "reading score", "writing score"]
+model, scaler, X, X_test, y_test, y_pred, accuracy, numeric_cols = train_and_save_model(df)
 
 # -------------------- SIDEBAR --------------------
 with st.sidebar:
     st.markdown("## 🔍 Navigation")
     page = st.radio("Select a Page", [
-        "📄 Overview",      # NEW TAB
+        "📄 Overview",
         "🏠 Home",
         "📊 Data Analysis",
         "🤖 Model Performance",
@@ -169,94 +161,54 @@ if page == "📄 Overview":
     st.markdown("<h2 class='section-header'>Project Overview</h2>", unsafe_allow_html=True)
     st.markdown("""
     ### 🎓 Student Performance Predictor
-
-    **Objective:** Predict student performance levels (Low, Medium, High) based on their characteristics and test scores.
-
-    **Features:**
-    - Analyze student data and visualize trends
-    - Train a Random Forest machine learning model
-    - Predict performance for new students
-    - Save and reuse trained models
-    - Interactive dashboard with dark theme
-
-    **Technology Stack:**
-    - Python
-    - Streamlit
-    - Pandas, NumPy
-    - Scikit-learn
-    - Matplotlib, Seaborn
-
-    **How it works:**
-    1. Load the dataset (or use saved model if dataset unavailable)
-    2. Train the Random Forest model on student data
-    3. Predict performance for any student
-    4. Visualize data trends and model insights
-
-    This tab provides an at-a-glance understanding of the project and its functionality.
+    Predict student performance levels (Low, Medium, High) based on their characteristics and test scores.
     """)
 
 # -------------------- HOME PAGE --------------------
 elif page == "🏠 Home":
     st.markdown("<h2 class='section-header'>Overview</h2>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
-    if df is not None:
-        c1.metric("Total Students", len(df))
+    c1.metric("Total Students", len(df))
     c2.metric("Model Accuracy", f"{accuracy*100:.2f}%")
-    if df is not None:
-        c3.metric("Features Used", df.shape[1])
-    st.info("This AI model predicts student performance levels (Low, Medium, High) using Random Forest.")
+    c3.metric("Features Used", df.shape[1])
 
-    if df is not None:
-        st.markdown("<h3 class='section-header'>Preview of Data</h3>", unsafe_allow_html=True)
-        st.dataframe(df.head(10), use_container_width=True)
+    st.markdown("<h3 class='section-header'>Preview of Data</h3>", unsafe_allow_html=True)
+    st.dataframe(df.head(10), use_container_width=True)
 
 # -------------------- DATA ANALYSIS --------------------
 elif page == "📊 Data Analysis":
-    if df is None:
-        st.warning("⚠️ Dataset not available for analysis.")
-    else:
-        st.markdown("<h2 class='section-header'>Exploratory Data Analysis</h2>", unsafe_allow_html=True)
-        tab1, tab2, tab3 = st.tabs(["Distribution", "Gender-wise", "Correlation"])
+    st.markdown("<h2 class='section-header'>Exploratory Data Analysis</h2>", unsafe_allow_html=True)
 
-        with tab1:
-            st.subheader("Average Score Distribution")
-            fig, ax = plt.subplots(figsize=(8, 5))
-            sns.histplot(df["average_score"], bins=16, kde=True, color="#3b82f6", ax=ax)
-            ax.set_title("Distribution of Average Scores (/50)", color="white")
-            st.pyplot(fig)
+    tab1, tab2, tab3 = st.tabs(["Distribution", "Gender-wise", "Correlation"])
 
-        with tab2:
-            st.subheader("Performance Level by Gender")
-            fig, ax = plt.subplots(figsize=(8, 5))
-            sns.countplot(x="gender", hue="performance_level", data=df, palette="coolwarm", ax=ax)
-            ax.set_title("Performance by Gender", color="white")
-            st.pyplot(fig)
+    with tab1:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.histplot(df["average_score"], bins=16, kde=True, color="#3b82f6", ax=ax)
+        st.pyplot(fig)
 
-        with tab3:
-            st.subheader("Correlation Heatmap")
-            fig, ax = plt.subplots(figsize=(6, 5))
-            corr = df[["math score", "reading score", "writing score", "average_score"]].corr()
-            sns.heatmap(corr, annot=True, cmap="mako", fmt=".2f", ax=ax)
-            ax.set_title("Correlation Between Scores", color="white")
-            st.pyplot(fig)
+    with tab2:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.countplot(x="gender", hue="performance_level", data=df, palette="coolwarm", ax=ax)
+        st.pyplot(fig)
+
+    with tab3:
+        fig, ax = plt.subplots(figsize=(6, 5))
+        corr = df[["math score", "reading score", "writing score", "average_score"]].corr()
+        sns.heatmap(corr, annot=True, cmap="mako", fmt=".2f", ax=ax)
+        st.pyplot(fig)
 
 # -------------------- MODEL PERFORMANCE --------------------
 elif page == "🤖 Model Performance":
     st.markdown("<h2 class='section-header'>Model Evaluation</h2>", unsafe_allow_html=True)
+
     col1, col2 = st.columns(2)
     col1.metric("Test Accuracy", f"{accuracy*100:.2f}%")
-    if y_test is not None and y_pred is not None:
-        col2.metric("Samples Tested", len(y_test))
+    col2.metric("Samples Tested", len(y_test))
 
-        st.subheader("Confusion Matrix")
-        fig, ax = plt.subplots(figsize=(6, 4))
-        cm = confusion_matrix(y_test, y_pred, labels=["Low", "Medium", "High"])
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-        ax.set_xlabel("Predicted")
-        ax.set_ylabel("Actual")
-        st.pyplot(fig)
-    else:
-        st.info("ℹ️ Model loaded from saved version — training data unavailable for metrics display.")
+    fig, ax = plt.subplots(figsize=(6, 4))
+    cm = confusion_matrix(y_test, y_pred, labels=["Low", "Medium", "High"])
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+    st.pyplot(fig)
 
 # -------------------- PREDICT STUDENT --------------------
 elif page == "🔮 Predict Student":
@@ -287,39 +239,23 @@ elif page == "🔮 Predict Student":
             "writing score": writing
         }
 
-        if df is not None:
-            X_cols = pd.get_dummies(df[["gender", "parental level of education", "lunch", "test preparation course",
-                                        "math score", "reading score", "writing score"]]).columns
-        else:
-            X_cols = model.feature_names_in_
+        X_cols = pd.get_dummies(df[[
+            "gender", "parental level of education", "lunch",
+            "test preparation course", "math score", "reading score", "writing score"
+        ]]).columns
 
         student_row = prepare_student_row(student, X_cols, scaler, ["math score", "reading score", "writing score"])
         prediction = model.predict(student_row)[0]
         prob = model.predict_proba(student_row)[0]
 
-        avg_score = (math + reading + writing) / 3
         st.success(f"### 🎓 Predicted Performance: **{prediction}**")
-        st.metric("Average Score", f"{avg_score:.2f}/50")
         st.metric("Confidence", f"{max(prob)*100:.1f}%")
-
-        prob_df = pd.DataFrame({
-            "Performance Level": model.classes_,
-            "Probability": prob
-        }).sort_values("Probability", ascending=False)
-
-        fig, ax = plt.subplots(figsize=(6, 3))
-        sns.barplot(x="Performance Level", y="Probability", data=prob_df, palette="viridis", ax=ax)
-        ax.set_ylim([0, 1])
-        st.pyplot(fig)
 
 # -------------------- FOOTER --------------------
 st.markdown("""
-<hr style="border: 1px solid #334155; margin-top: 3rem; margin-bottom: 1rem;">
+<hr style="border: 1px solid #334155; margin-top: 3rem;">
 <div style='text-align: center; color: #94a3b8; font-size: 14px;'>
-    <p>🎓 Advanced Student Performance Predictor | Built with Streamlit & Scikit-learn</p>
-    <p>💡 Developed by <b>Muhammad Furqan</b></p>
+    🎓 Advanced Student Performance Predictor | Built with Streamlit & Scikit-learn <br>
+    💡 Developed by <b>Muhammad Furqan</b>
 </div>
-
 """, unsafe_allow_html=True)
-
-
