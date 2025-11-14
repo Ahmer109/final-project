@@ -11,7 +11,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import joblib
 
 # -------------------- CONFIGURATION --------------------
-DATA_PATH = "https://drive.google.com/file/d/1Y7NydfRMGUFULWgxsAvsybu5w4-62cmB/view?usp=drive_link"
+# DATA_PATH = "https://drive.google.com/file/d/1Y7NydfRMGUFULWgxsAvsybu5w4-62cmB/view?usp=drive_link"
+DATA_PATH = "https://drive.google.com/uc?id=1Y7NydfRMGUFULWgxsAvsybu5w4-62cmB&export=download"
 MODEL_PATH = "student_performance_model.pkl"
 SCALER_PATH = "scaler.pkl"
 
@@ -319,3 +320,4 @@ st.markdown("""
 </div>
 
 """, unsafe_allow_html=True)
+
